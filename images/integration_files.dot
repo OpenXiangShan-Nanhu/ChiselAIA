@@ -1,0 +1,34 @@
+digraph {
+  label="Files and Classes in ChiselAIA"
+  bgcolor=transparent;
+  node [shape=box];
+
+  subgraph legend {
+    cluster=True;
+    label=Legend;
+    pencolor="gray";
+
+    _class0[label="single-instance\nclass", style="filled", fillcolor="#F8CECC", color="#B85450"];
+    _class1[label="multi-instance\nclass", peripheries=3, style="filled", fillcolor="#F8CECC", color="#B85450"];
+  }
+
+  subgraph aplic_scala {
+    label="APLIC.scala";
+    cluster=True;
+    aplicparams [label="class APLICParams", style="filled", fillcolor="#F8CECC", color="#B85450"];
+    tlaplic [label="class TLAPLIC", style="filled", fillcolor="#F8CECC", color="#B85450"];
+    aplicparams -> tlaplic[color="#B85450"];
+  }
+
+  subgraph imsic_scala {
+    label="IMSIC.scala";
+    cluster=True;
+    imsicparams [label="class IMSICParams", style="filled", fillcolor="#F8CECC", color="#B85450"];
+    tlimsic [label="class TLIMSIC", peripheries=3, style="filled", fillcolor="#F8CECC", color="#B85450"];
+    imsicparams -> tlimsic[color="#B85450"];
+  }
+
+
+  _class0 -> aplicparams[color=transparent];
+  _class1 -> imsicparams[color=transparent];
+}

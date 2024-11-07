@@ -1,0 +1,120 @@
+digraph G {
+bgcolor=transparent;
+label=Example;
+splines=ortho;
+node [shape=box];
+toAIA [label="toAIA\nTLClientNode"];
+toAIA_xbar [label="toAIA_xbar\nTLXbar", width=5];
+toAIA -> toAIA_xbar;
+imsics_fromMem_xbar [label="imsics_fromMem_xbar\nTLXbar", width=10];
+toAIA_xbar -> imsics_fromMem_xbar;
+subgraph imsic00 {
+bgcolor="#F8CECC";
+cluster=True;
+label="imsic00\nTLIMSIC";
+pencolor="#B85450";
+style=filled;
+imsic00_fromMem [label="fromMem\nTLXbar"];
+imsic00_fromCSR [label="fromCSR\nBundle"];
+imsic00_toCSR [label="toCSR\nBundle"];
+imsic00_fromMem -> imsic00_fromCSR  [color=transparent];
+imsic00_fromMem -> imsic00_toCSR  [color=transparent];
+}
+
+map00 [label="[mAddr00,sgAddr00]\nmap00\nTLMap\n[0x0,0x10000]"];
+imsics_fromMem_xbar -> map00;
+map00 -> imsic00_fromMem;
+subgraph imsic01 {
+bgcolor="#F8CECC";
+cluster=True;
+label="imsic01\nTLIMSIC";
+pencolor="#B85450";
+style=filled;
+imsic01_fromMem [label="fromMem\nTLXbar"];
+imsic01_fromCSR [label="fromCSR\nBundle"];
+imsic01_toCSR [label="toCSR\nBundle"];
+imsic01_fromMem -> imsic01_fromCSR  [color=transparent];
+imsic01_fromMem -> imsic01_toCSR  [color=transparent];
+}
+
+map01 [label="[mAddr01,sgAddr01]\nmap11\nTLMap\n[0x0,0x10000]"];
+imsics_fromMem_xbar -> map01;
+map01 -> imsic01_fromMem;
+subgraph imsic10 {
+bgcolor="#F8CECC";
+cluster=True;
+label="imsic10\nTLIMSIC";
+pencolor="#B85450";
+style=filled;
+imsic10_fromMem [label="fromMem\nTLXbar"];
+imsic10_fromCSR [label="fromCSR\nBundle"];
+imsic10_toCSR [label="toCSR\nBundle"];
+imsic10_fromMem -> imsic10_fromCSR  [color=transparent];
+imsic10_fromMem -> imsic10_toCSR  [color=transparent];
+}
+
+map10 [label="[mAddr10,sgAddr10]\nmap00\nTLMap\n[0x0,0x10000]"];
+imsics_fromMem_xbar -> map10;
+map10 -> imsic10_fromMem;
+subgraph imsic11 {
+bgcolor="#F8CECC";
+cluster=True;
+label="imsic11\nTLIMSIC";
+pencolor="#B85450";
+style=filled;
+imsic11_fromMem [label="fromMem\nTLXbar"];
+imsic11_fromCSR [label="fromCSR\nBundle"];
+imsic11_toCSR [label="toCSR\nBundle"];
+imsic11_fromMem -> imsic11_fromCSR  [color=transparent];
+imsic11_fromMem -> imsic11_toCSR  [color=transparent];
+}
+
+map11 [label="[mAddr11,sgAddr11]\nmap11\nTLMap\n[0x0,0x10000]"];
+imsics_fromMem_xbar -> map11;
+map11 -> imsic11_fromMem;
+toCSR0 [label="toCSR0\nBundle"];
+imsic00_toCSR -> toCSR0;
+fromCSR0 [label="fromCSR0\nBundle"];
+imsic00_fromCSR -> fromCSR0  [dir=back];
+toCSR1 [label="toCSR1\nBundle"];
+imsic01_toCSR -> toCSR1;
+fromCSR1 [label="fromCSR1\nBundle"];
+imsic01_fromCSR -> fromCSR1  [dir=back];
+toCSR2 [label="toCSR2\nBundle"];
+imsic10_toCSR -> toCSR2;
+fromCSR2 [label="fromCSR2\nBundle"];
+imsic10_fromCSR -> fromCSR2  [dir=back];
+toCSR3 [label="toCSR3\nBundle"];
+imsic11_toCSR -> toCSR3;
+fromCSR3 [label="fromCSR3\nBundle"];
+imsic11_fromCSR -> fromCSR3  [dir=back];
+subgraph aplic {
+bgcolor="#F8CECC";
+cluster=True;
+label="aplic\nTLAPLIC";
+pencolor="#B85450";
+style=filled;
+aplic_fromCPU [label="fromCPU\nTLXbar"];
+aplic_toIMSIC [label="toIMSIC\nTLXbar"];
+aplic_intSrcs [label="module.intSrcs\nBundle"];
+aplic_fromCPU -> aplic_toIMSIC  [color=transparent];
+aplic_intSrcs -> aplic_toIMSIC  [color=transparent];
+}
+
+toAIA_xbar -> aplic_fromCPU;
+aplic_toIMSIC -> imsics_fromMem_xbar;
+intSrcs [label="intSrcs\nBundle"];
+intSrcs -> aplic_intSrcs;
+input [color=transparent, height=0, label="", width=5];
+input -> intSrcs;
+input -> toAIA;
+output [color=transparent, height=0, label="", width=10];
+toCSR0 -> output;
+fromCSR0 -> output  [dir=back];
+toCSR1 -> output;
+fromCSR1 -> output  [dir=back];
+toCSR2 -> output;
+fromCSR2 -> output  [dir=back];
+toCSR3 -> output;
+fromCSR3 -> output  [dir=back];
+}

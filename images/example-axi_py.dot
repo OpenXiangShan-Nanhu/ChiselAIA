@@ -1,0 +1,187 @@
+digraph G {
+bgcolor=transparent;
+label=Example;
+splines=ortho;
+node [shape=box];
+toAIA [label="toAIA\nAXI4MasterNode"];
+toAIA_xbar [label="toAIA_xbar\nAXI4Xbar", width=5];
+toAIA -> toAIA_xbar;
+imsics_fromMem_xbar [label="imsics_fromMem_xbar\nAXI4Xbar", width=10];
+toAIA_xbar -> imsics_fromMem_xbar;
+subgraph axi4imsic00 {
+cluster=True;
+label="imsic00\nAXI4IMSIC";
+subgraph imsic00 {
+bgcolor="#F8CECC";
+cluster=True;
+label="imsic00\nTLIMSIC";
+pencolor="#B85450";
+style=filled;
+imsic00_fromMem [label="fromMem\nTLXbar"];
+imsic00_fromCSR [label="fromCSR\nBundle"];
+imsic00_toCSR [label="toCSR\nBundle"];
+imsic00_fromMem -> imsic00_fromCSR  [color=transparent];
+imsic00_fromMem -> imsic00_toCSR  [color=transparent];
+}
+
+axi4imsic00_fromMem [label="fromMem\nAXI4IdentityNode"];
+axi4imsic00_axi4totl [color="#6C8EBF", fillcolor="#DAE8FC", label=AXI4ToTL, style=filled];
+axi4imsic00_fromMem -> axi4imsic00_axi4totl;
+axi4imsic00_axi4totl -> imsic00_fromMem;
+axi4imsic00_toCSR [label="toCSR\nBundle"];
+imsic00_toCSR -> axi4imsic00_toCSR;
+axi4imsic00_fromCSR [label="fromCSR\nBundle"];
+imsic00_fromCSR -> axi4imsic00_fromCSR  [dir=back];
+}
+
+map00 [label="[mAddr00,sgAddr00]\nmap00\nAXI4Map\n[0x0,0x10000]"];
+imsics_fromMem_xbar -> map00;
+map00 -> axi4imsic00_fromMem;
+subgraph axi4imsic01 {
+cluster=True;
+label="imsic01\nAXI4IMSIC";
+subgraph imsic01 {
+bgcolor="#F8CECC";
+cluster=True;
+label="imsic01\nTLIMSIC";
+pencolor="#B85450";
+style=filled;
+imsic01_fromMem [label="fromMem\nTLXbar"];
+imsic01_fromCSR [label="fromCSR\nBundle"];
+imsic01_toCSR [label="toCSR\nBundle"];
+imsic01_fromMem -> imsic01_fromCSR  [color=transparent];
+imsic01_fromMem -> imsic01_toCSR  [color=transparent];
+}
+
+axi4imsic01_fromMem [label="fromMem\nAXI4IdentityNode"];
+axi4imsic01_axi4totl [color="#6C8EBF", fillcolor="#DAE8FC", label=AXI4ToTL, style=filled];
+axi4imsic01_fromMem -> axi4imsic01_axi4totl;
+axi4imsic01_axi4totl -> imsic01_fromMem;
+axi4imsic01_toCSR [label="toCSR\nBundle"];
+imsic01_toCSR -> axi4imsic01_toCSR;
+axi4imsic01_fromCSR [label="fromCSR\nBundle"];
+imsic01_fromCSR -> axi4imsic01_fromCSR  [dir=back];
+}
+
+map01 [label="[mAddr01,sgAddr01]\nmap11\nAXI4Map\n[0x0,0x10000]"];
+imsics_fromMem_xbar -> map01;
+map01 -> axi4imsic01_fromMem;
+subgraph axi4imsic10 {
+cluster=True;
+label="imsic10\nAXI4IMSIC";
+subgraph imsic10 {
+bgcolor="#F8CECC";
+cluster=True;
+label="imsic10\nTLIMSIC";
+pencolor="#B85450";
+style=filled;
+imsic10_fromMem [label="fromMem\nTLXbar"];
+imsic10_fromCSR [label="fromCSR\nBundle"];
+imsic10_toCSR [label="toCSR\nBundle"];
+imsic10_fromMem -> imsic10_fromCSR  [color=transparent];
+imsic10_fromMem -> imsic10_toCSR  [color=transparent];
+}
+
+axi4imsic10_fromMem [label="fromMem\nAXI4IdentityNode"];
+axi4imsic10_axi4totl [color="#6C8EBF", fillcolor="#DAE8FC", label=AXI4ToTL, style=filled];
+axi4imsic10_fromMem -> axi4imsic10_axi4totl;
+axi4imsic10_axi4totl -> imsic10_fromMem;
+axi4imsic10_toCSR [label="toCSR\nBundle"];
+imsic10_toCSR -> axi4imsic10_toCSR;
+axi4imsic10_fromCSR [label="fromCSR\nBundle"];
+imsic10_fromCSR -> axi4imsic10_fromCSR  [dir=back];
+}
+
+map10 [label="[mAddr10,sgAddr10]\nmap00\nAXI4Map\n[0x0,0x10000]"];
+imsics_fromMem_xbar -> map10;
+map10 -> axi4imsic10_fromMem;
+subgraph axi4imsic11 {
+cluster=True;
+label="imsic11\nAXI4IMSIC";
+subgraph imsic11 {
+bgcolor="#F8CECC";
+cluster=True;
+label="imsic11\nTLIMSIC";
+pencolor="#B85450";
+style=filled;
+imsic11_fromMem [label="fromMem\nTLXbar"];
+imsic11_fromCSR [label="fromCSR\nBundle"];
+imsic11_toCSR [label="toCSR\nBundle"];
+imsic11_fromMem -> imsic11_fromCSR  [color=transparent];
+imsic11_fromMem -> imsic11_toCSR  [color=transparent];
+}
+
+axi4imsic11_fromMem [label="fromMem\nAXI4IdentityNode"];
+axi4imsic11_axi4totl [color="#6C8EBF", fillcolor="#DAE8FC", label=AXI4ToTL, style=filled];
+axi4imsic11_fromMem -> axi4imsic11_axi4totl;
+axi4imsic11_axi4totl -> imsic11_fromMem;
+axi4imsic11_toCSR [label="toCSR\nBundle"];
+imsic11_toCSR -> axi4imsic11_toCSR;
+axi4imsic11_fromCSR [label="fromCSR\nBundle"];
+imsic11_fromCSR -> axi4imsic11_fromCSR  [dir=back];
+}
+
+map11 [label="[mAddr11,sgAddr11]\nmap11\nAXI4Map\n[0x0,0x10000]"];
+imsics_fromMem_xbar -> map11;
+map11 -> axi4imsic11_fromMem;
+toCSR0 [label="toCSR0\nBundle"];
+axi4imsic00_toCSR -> toCSR0;
+fromCSR0 [label="fromCSR0\nBundle"];
+axi4imsic00_fromCSR -> fromCSR0  [dir=back];
+toCSR1 [label="toCSR1\nBundle"];
+axi4imsic01_toCSR -> toCSR1;
+fromCSR1 [label="fromCSR1\nBundle"];
+axi4imsic01_fromCSR -> fromCSR1  [dir=back];
+toCSR2 [label="toCSR2\nBundle"];
+axi4imsic10_toCSR -> toCSR2;
+fromCSR2 [label="fromCSR2\nBundle"];
+axi4imsic10_fromCSR -> fromCSR2  [dir=back];
+toCSR3 [label="toCSR3\nBundle"];
+axi4imsic11_toCSR -> toCSR3;
+fromCSR3 [label="fromCSR3\nBundle"];
+axi4imsic11_fromCSR -> fromCSR3  [dir=back];
+subgraph axi4aplic {
+cluster=True;
+label="aplic\nAXI4APLIC";
+subgraph aplic {
+bgcolor="#F8CECC";
+cluster=True;
+label="aplic\nTLAPLIC";
+pencolor="#B85450";
+style=filled;
+aplic_fromCPU [label="fromCPU\nTLXbar"];
+aplic_toIMSIC [label="toIMSIC\nTLXbar"];
+aplic_intSrcs [label="module.intSrcs\nBundle"];
+aplic_fromCPU -> aplic_toIMSIC  [color=transparent];
+aplic_intSrcs -> aplic_toIMSIC  [color=transparent];
+}
+
+axi4aplic_fromCPU [label="fromCPU\nAXI4IdentityNode"];
+axi4aplic_axi4totl [color="#6C8EBF", fillcolor="#DAE8FC", label=AXI4ToTL, style=filled];
+axi4aplic_fromCPU -> axi4aplic_axi4totl;
+axi4aplic_axi4totl -> aplic_fromCPU;
+axi4aplic_toIMSIC [label="toIMSIC\nAXI4IdentityNode"];
+axi4aplic_tltoaxi4 [color="#6C8EBF", fillcolor="#DAE8FC", label=TLToAXI4, style=filled];
+aplic_toIMSIC -> axi4aplic_tltoaxi4;
+axi4aplic_tltoaxi4 -> axi4aplic_toIMSIC;
+axi4aplic_intSrcs [label="intSrcs\nBundle"];
+axi4aplic_intSrcs -> aplic_intSrcs;
+}
+
+toAIA_xbar -> axi4aplic_fromCPU;
+axi4aplic_toIMSIC -> imsics_fromMem_xbar;
+intSrcs [label="intSrcs\nBundle"];
+intSrcs -> axi4aplic_intSrcs;
+input [color=transparent, height=0, label="", width=5];
+input -> intSrcs;
+input -> toAIA;
+output [color=transparent, height=0, label="", width=11];
+toCSR0 -> output;
+fromCSR0 -> output  [dir=back];
+toCSR1 -> output;
+fromCSR1 -> output  [dir=back];
+toCSR2 -> output;
+fromCSR2 -> output  [dir=back];
+toCSR3 -> output;
+fromCSR3 -> output  [dir=back];
+}
