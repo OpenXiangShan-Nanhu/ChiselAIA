@@ -49,7 +49,7 @@ class AXI4AIA()(implicit p: Parameters) extends LazyModule {
     })(Parameters.empty)).node
 
     val imsic = LazyModule(new AXI4IMSIC(imsic_params)(Parameters.empty))
-    imsic.fromMem := map := imsics_fromMem_xbar
+    imsic.axireg.fromMem := map := imsics_fromMem_xbar
     imsic
   })
 

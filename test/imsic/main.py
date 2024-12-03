@@ -34,7 +34,7 @@ async def imsic_1_test(dut):
   # Initialize ready signals
   dut.toaia_0_d_ready.value = 1
 
-  await RisingEdge(dut.clock)
+  await FallingEdge(dut.clock)
 
   # Initialize IMSIC
   await init_imsic(dut)
@@ -47,6 +47,7 @@ async def imsic_1_test(dut):
   cocotb.log.info("mseteipnum began")
   await m_int(dut, 1996%256)
   topeis_0 = wrap_topei(1996%256)
+  await FallingEdge(dut.clock) ## delay one cycle caused by RegGen.
   assert dut.toCSR1_topeis_0.value == topeis_0
   dut.toCSR1_pendings_0.value = 1
   cocotb.log.info("mseteipnum passed")
@@ -60,8 +61,10 @@ async def imsic_1_test(dut):
   # 2_mseteipnum_1_bits_mclaim began
   cocotb.log.info("2_mseteipnum_1_bits_mclaim began")
   await m_int(dut, 12)
+  await FallingEdge(dut.clock) ## delay one cycle caused by RegGen.
   assert dut.toCSR1_topeis_0.value == wrap_topei(12)
   await m_int(dut, 8)
+  await FallingEdge(dut.clock) ## delay one cycle caused by RegGen.
   assert dut.toCSR1_topeis_0.value == wrap_topei(8)
   await claim(dut)
   assert dut.toCSR1_topeis_0.value == wrap_topei(12)
@@ -117,7 +120,7 @@ async def imsic_1_test(dut):
   # read_csr:eie began
   cocotb.log.info("read_csr:eie began")
   await read_csr(dut, csr_addr_eie0)
-  await RisingEdge(dut.clock)
+  await FallingEdge(dut.clock)
   # toCSR1_rdata_bits = dut.toCSR1_rdata_bits.value
   # eies_0 = dut.imsic_1.imsic.intFile.eies_0.value
   # assert toCSR1_rdata_bits == eies_0
@@ -128,6 +131,7 @@ async def imsic_1_test(dut):
   await select_s_intfile(dut)
   assert dut.toCSR1_topeis_1.value == wrap_topei(0)
   await s_int(dut, 1234%256)
+  await FallingEdge(dut.clock) ## delay one cycle caused by RegGen.
   assert dut.toCSR1_topeis_1.value == wrap_topei(1234%256)
   dut.toCSR1_pendings_1.value = 1
   await select_m_intfile(dut)
@@ -138,6 +142,7 @@ async def imsic_1_test(dut):
   await select_vs_intfile(dut, 2)
   assert dut.toCSR1_topeis_2.value == wrap_topei(0)
   await v_int_vgein(dut, 137)
+  await FallingEdge(dut.clock)
   assert dut.toCSR1_topeis_2.value == wrap_topei(137)
   dut.toCSR1_pendings_4.value = 1  # Assuming pendings_4 corresponds to vgein=2
   await select_m_intfile(dut)
@@ -188,7 +193,7 @@ async def imsic_1_test(dut):
   await write_csr(dut, csr_addr_eip0, 0x1)
   await read_csr(dut, csr_addr_eip0)
   for _ in range(10):
-    await RisingEdge(dut.clock)
+    await FallingEdge(dut.clock)
     if dut.toCSR1_rdata_valid.value == 1:
       break
   else:
@@ -200,7 +205,7 @@ async def imsic_1_test(dut):
   await m_int(dut, 0)
   await read_csr(dut, csr_addr_eip0)
   for _ in range(10):
-    await RisingEdge(dut.clock)
+    await FallingEdge(dut.clock)
     if dut.toCSR1_rdata_valid.value == 1:
       break
   else:
