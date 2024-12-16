@@ -15,6 +15,17 @@
 
 from cocotb.triggers import RisingEdge, FallingEdge
 
+## delay about async fifo for imsic,EnableImsicAsyncBridge indicate the delay caused by imsic is async
+EnableImsicAsyncBridge = 0
+async def delay_fifo(dut):
+    if EnableImsicAsyncBridge ==1 :
+        for _ in range(5):
+            await FallingEdge(dut.clock) ## delay caused by async fifo: source and sink, when EnableImsicAsyncBridge is true
+    else:
+        """EnableImsicAsyncbridge is 0."""
+  
+## delay about async fifo for imsic
+
 op_put_full = 0
 op_get = 4
 op_access_ack = 0
@@ -65,12 +76,20 @@ async def interrupt(dut, i):
   intSrcs_x.value = 0
   await FallingEdge(dut.clock)
   intSrcs_x.value = 1
-  for _ in range(10):
-    await FallingEdge(dut.clock)
-    if dut.toCSR0_topeis_0 == wrap_topei(i):
-      break
-  else:
-    assert False, f"Timeout waiting for toCSR0_topeis_0 == wrap_topei({i})"
+  if EnableImsicAsyncBridge ==1 :
+    for _ in range(15):
+      await FallingEdge(dut.clock)
+      if dut.toCSR0_topeis_0 == wrap_topei(i):
+        break
+    else:
+      assert False, f"Timeout waiting for toCSR0_topeis_0 == wrap_topei({i})"
+  else :
+    for _ in range(10):
+      await FallingEdge(dut.clock)
+      if dut.toCSR0_topeis_0 == wrap_topei(i):
+        break
+    else:
+      assert False, f"Timeout waiting for toCSR0_topeis_0 == wrap_topei({i})"
 
 ################################################################################
 # IMSIC

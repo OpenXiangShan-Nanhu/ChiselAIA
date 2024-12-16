@@ -33,6 +33,7 @@ class AXI4AIA()(implicit p: Parameters) extends LazyModule {
 
   // Here we create 2 imsic groups, each group contains two 2 CPUs
   val imsic_params = IMSICParams()
+//val imsic_params = IMSICParams(EnbleImsicAsyncBridge = true) //switch on enable IMSIC async
   val aplic_params = APLICParams(groupsNum=2, membersNum=2)
   val imsics_fromMem_xbar = LazyModule(new AXI4Xbar).node
   imsics_fromMem_xbar := toAIA_xbar
@@ -49,7 +50,7 @@ class AXI4AIA()(implicit p: Parameters) extends LazyModule {
     })(Parameters.empty)).node
 
     val imsic = LazyModule(new AXI4IMSIC(imsic_params)(Parameters.empty))
-    imsic.fromMem := map := imsics_fromMem_xbar
+    imsic.axireg.fromMem := map := imsics_fromMem_xbar
     imsic
   })
 
@@ -67,6 +68,10 @@ class AXI4AIA()(implicit p: Parameters) extends LazyModule {
     })
     val intSrcs = IO(Input(chiselTypeOf(aplic.module.intSrcs)))
     intSrcs <> aplic.module.intSrcs
+    for (i <- 0 until 4) {
+      imsics(i).module.soc_clock := clock
+      imsics(i).module.soc_reset := reset
+    }
   }
 }
 

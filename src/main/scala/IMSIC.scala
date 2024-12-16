@@ -16,7 +16,7 @@
 
 package aia
 
-import chisel3._
+import chisel3.{IO, _} 
 import chisel3.util._
 import freechips.rocketchip.diplomacy._
 import org.chipsalliance.cde.config.Parameters
@@ -93,6 +93,7 @@ case class IMSICParams(
   vgeinWidth      : Int  = 6           ,
   //MC iselect信号的位宽(The width of iselect signal):
   iselectWidth    : Int  = 12          ,
+  EnableImsicAsyncBridge: Boolean = false,
   //MC{hide}
 ) {
   lazy val xlen        : Int  = 64 // currently only support xlen = 64
@@ -115,7 +116,7 @@ class IMSIC(
   class IntFile extends Module {
     override def desiredName = "IntFile"
     val fromCSR = IO(Input(new Bundle {
-      val seteipnum = ValidIO(UInt(32.W))
+      val seteipnum = ValidIO(UInt(params.imsicIntSrcWidth.W))
       val addr = ValidIO(UInt(params.iselectWidth.W))
       val wdata = ValidIO(new Bundle {
         val op = OpType()
@@ -234,15 +235,10 @@ class IMSIC(
 
     val toCSR = IO(Output(new IMSICToCSRBundle(params)))
     val fromCSR = IO(Input(new CSRToIMSICBundle(params)))
-    val regmapIOs = Seq(
-      params.intFileMemWidth,
-      params.intFileMemWidth + log2Ceil(1+params.geilen)
-    ).map(width => {
-      val regmapParams = RegMapperParams(width-log2Up(beatBytes), beatBytes)
-      ( IO(Flipped(Decoupled(new RegMapperInput(regmapParams)))),
-        IO(Decoupled(new RegMapperOutput(regmapParams))) )
-    })
-
+    val io = IO(Input(new Bundle {
+    val seteipnum = UInt(params.imsicIntSrcWidth.W)
+    val valid = Vec(params.intFilesNum,Bool())
+    }))
     private val illegal_priv = WireDefault(false.B)
     private val intFilesSelOH = WireDefault(0.U(params.intFilesNum.W))
     locally {
@@ -255,15 +251,14 @@ class IMSIC(
     private val topeis_forEachIntFiles = Wire(Vec(params.intFilesNum, UInt(params.imsicIntSrcWidth.W)))
     private val illegals_forEachIntFiles = Wire(Vec(params.intFilesNum, Bool()))
 
-    (regmapIOs zip Seq(1, 1+params.geilen)).zipWithIndex.map {
-      case ((regmapIO: (DecoupledIO[RegMapperInput], DecoupledIO[RegMapperOutput]), intFilesNum: Int), i: Int)
+    (Seq(1, 1+params.geilen)).zipWithIndex.map {
+      case (intFilesNum: Int, i: Int)
     => {
       // j: index for S intFile: S, G1, G2, ...
       val maps = (0 until intFilesNum).map { j => {
         val flati = i + j
         val pi = if(flati>2) 2 else flati // index for privileges: M, S, VS.
 
-        val seteipnum = WireInit(0.U.asTypeOf(Valid(UInt(32.W)))); /*for debug*/dontTouch(seteipnum)
         def sel[T<:Data](old: Valid[T]): Valid[T] = {
           val new_ = Wire(Valid(chiselTypeOf(old.bits)))
           new_.bits := old.bits
@@ -271,7 +266,8 @@ class IMSIC(
           new_
         }
         val intFile = Module(new IntFile)
-        intFile.fromCSR.seteipnum       := seteipnum
+        intFile.fromCSR.seteipnum.bits  := io.seteipnum
+        intFile.fromCSR.seteipnum.valid := io.valid(flati)
         intFile.fromCSR.addr            := sel(fromCSR.addr)
         intFile.fromCSR.wdata           := sel(fromCSR.wdata)
         intFile.fromCSR.claim           := fromCSR.claims(pi) & intFilesSelOH(flati)
@@ -279,12 +275,7 @@ class IMSIC(
         toCSR.pendings(flati)           := intFile.toCSR.pending
         topeis_forEachIntFiles(flati)   := intFile.toCSR.topei
         illegals_forEachIntFiles(flati) := intFile.toCSR.illegal
-        (j * pow2(params.intFileMemWidth).toInt -> Seq(RegField(32, 0.U,
-          RegWriteFn((valid, data) => {
-            when (valid) { seteipnum.bits := data; seteipnum.valid := true.B }; true.B
-        }))))
       }}
-      regmapIO._2 <> RegMapper(beatBytes, 1, true, regmapIO._1, maps: _*)
     }}
 
     locally {
@@ -312,12 +303,13 @@ class IMSIC(
     ).reduce(_|_)
 }
 
-class TLIMSIC(
+class TLRegIMSIC(
   params: IMSICParams,
   beatBytes: Int = 8,
 )(implicit p: Parameters) extends LazyModule {
-  val fromMem = LazyModule(new TLXbar).node
-  private val intfileFromMems = Seq(
+    val fromMem = TLXbar()
+  //val fromMem = LazyModule(new TLXbar).node
+    private val intfileFromMems = Seq(
     AddressSet(params.mAddr,  pow2(params.intFileMemWidth) - 1),
     AddressSet(params.sgAddr, pow2(params.intFileMemWidth) * pow2(log2Ceil(1+params.geilen)) - 1),
   ).map ( addrset => {
@@ -327,6 +319,27 @@ class TLIMSIC(
     intfileFromMem := fromMem; intfileFromMem
   })
 
+  lazy val module = new TLRegIMSICImp(this)
+  class TLRegIMSICImp(outer: LazyModule) extends LazyModuleImp(outer) {
+    val io = IO(Output(new Bundle {
+      val seteipnum = UInt(params.imsicIntSrcWidth.W)
+      val valid = Vec(params.intFilesNum,Bool())
+    }))
+    private val reggen = Module(new RegGen(params, beatBytes))
+    io.seteipnum := reggen.io.seteipnum
+    io.valid     := reggen.io.valid
+    (intfileFromMems zip reggen.regmapIOs).map {
+      case (intfileFromMem, regmapIO) => intfileFromMem.regmap(regmapIO._1, regmapIO._2)
+    }
+  }
+}
+
+class TLIMSIC(
+  params: IMSICParams,
+  beatBytes: Int = 8,
+)(implicit p: Parameters) extends LazyModule {
+  val axireg = LazyModule(new TLRegIMSIC(params, beatBytes)(Parameters.empty))
+
   lazy val module = new Imp
   class Imp extends LazyModuleImp(this) {
     val toCSR = IO(Output(new IMSICToCSRBundle(params)))
@@ -334,8 +347,129 @@ class TLIMSIC(
     private val imsic = Module(new IMSIC(params, beatBytes))
     toCSR := imsic.toCSR
     imsic.fromCSR := fromCSR
+    imsic.io.seteipnum := axireg.module.io.seteipnum
+    imsic.io.valid := axireg.module.io.valid
+    /* code on when imsic has two clock domains.*/
+    //--- define soc_clock for imsic bus logic ***//
+    val soc_clock = IO(Input(Clock()))
+    val soc_reset = IO(Input(Reset()))
+    axireg.module.clock := soc_clock
+    axireg.module.reset := soc_reset
+    imsic.clock := clock
+    imsic.reset := reset
+    when(params.EnableImsicAsyncBridge.B) {
+      val FifoDataWidth = params.imsicIntSrcWidth + params.intFilesNum
+      //---- instance async fifo ----//
+      //--- fifo wdata: {vector_valid,setipnum}, fifo wren: |vector_valid---//
+      val fifo_wdata = Wire(Valid(UInt(FifoDataWidth.W)))
+      fifo_wdata.bits := Cat(axireg.module.io.valid.asUInt, axireg.module.io.seteipnum)
+      fifo_wdata.valid := axireg.module.io.valid.reduce(_ | _)
+      //--- instance about fifo async queue sink  ---//
+      val sink = Module(new AsyncQueueSink(UInt(FifoDataWidth.W),AsyncQueueParams(8,3,false,false)))
+      sink.io.deq.ready := true.B
+      //--- fifo rdata decode ---//
+      imsic.io.seteipnum := sink.io.deq.bits(params.imsicIntSrcWidth - 1, 0)
 
-    (intfileFromMems zip imsic.regmapIOs).map {
+      val fifo_rvalids = sink.io.deq.bits(FifoDataWidth - 1, params.imsicIntSrcWidth)
+      val rvalids_tovec = VecInit(Seq.fill(params.intFilesNum)(false.B)) // bits->vector
+      for (i <- 0 until params.intFilesNum) {
+        rvalids_tovec(i) := fifo_rvalids(i)
+      }
+      when(sink.io.deq.valid) { // active when sink.valid active
+        imsic.io.valid := rvalids_tovec
+      }.otherwise {
+        imsic.io.valid := Seq.fill(params.intFilesNum)(false.B)
+      }
+      //--- instance about fifo async queue source  ---//
+      val source = Module(new AsyncQueueSource(UInt(FifoDataWidth.W),AsyncQueueParams(8,3,false,false)))
+      source.clock := soc_clock
+      source.reset := soc_reset
+      source.io.enq.valid := fifo_wdata.valid
+      source.io.enq.bits := fifo_wdata.bits
+      sink.io.async <> source.io.async
+
+    }.otherwise {
+      imsic.io.seteipnum := axireg.module.io.seteipnum
+      imsic.io.valid := axireg.module.io.valid
+    }
+  }
+}
+
+//integrated for async clock domain,kmh,zhaohong
+class RegGen(
+  params: IMSICParams,
+  beatBytes: Int = 8,
+) extends Module {
+  val regmapIOs = Seq(
+    params.intFileMemWidth,
+    params.intFileMemWidth + log2Ceil(1+params.geilen)
+  ).map(width => {
+    val regmapParams = RegMapperParams(width-log2Up(beatBytes), beatBytes)
+    ( IO(Flipped(Decoupled(new RegMapperInput(regmapParams)))),
+      IO(Decoupled(new RegMapperOutput(regmapParams))))
+  })
+  //define the output reg: seteipnum is the MSI id,vld[],valid flag for interrupt file domains: m,s,vs1~vsgeilen
+  val io = IO(Output(new Bundle {
+    val seteipnum = UInt(params.imsicIntSrcWidth.W)
+    val valid = Vec(params.intFilesNum,Bool())
+  }))
+  val valids = WireInit(VecInit(Seq.fill(params.intFilesNum)(false.B)))
+  val seteipnums = WireInit(VecInit(Seq.fill(params.intFilesNum)(0.U(params.imsicIntSrcWidth.W))))
+  val outseteipnum = RegInit(0.U(params.imsicIntSrcWidth.W))
+  val outvalids = RegInit(VecInit(Seq.fill(params.intFilesNum)(false.B)))
+
+  (regmapIOs zip Seq(1, 1+params.geilen)).zipWithIndex.map { //seq[0]: m interrupt file, seq[1]: s&vs interrupt file
+    case ((regmapIO: (DecoupledIO[RegMapperInput], DecoupledIO[RegMapperOutput]),intFilesNum: Int), i: Int)
+    => {
+      // j: index is 0 for m file for seq[0],index is 0~params.geilen for S intFile for seq[1]: S, G1, G2, ...
+      val maps = (0 until intFilesNum).map { j => {
+        val flati = i + j       //seq[0]:0+0=0;seq[1]:(0~geilen)+1
+        val seteipnum = WireInit(0.U.asTypeOf(Valid(UInt(params.imsicIntSrcWidth.W)))); /*for debug*/dontTouch(seteipnum)
+        valids(flati) := seteipnum.valid
+        seteipnums(flati) := seteipnum.bits
+        (j * pow2(params.intFileMemWidth).toInt -> Seq(RegField(32, 0.U,
+          RegWriteFn((valid, data) => {
+            when (valid) { seteipnum.bits := data(params.imsicIntSrcWidth-1,0); seteipnum.valid := true.B }; true.B
+          }))))
+          }}
+      regmapIO._2 <> RegMapper(beatBytes, 1, true, regmapIO._1, maps: _*)
+    }
+  outseteipnum := seteipnums.reduce(_|_)
+  outvalids    := valids
+  io.seteipnum := outseteipnum
+  io.valid     := outvalids
+  }
+}
+
+//generate axi42reg for IMSIC
+class AXIRegIMSIC(
+                 params: IMSICParams,
+                 beatBytes: Int = 8,
+               )(implicit p: Parameters) extends LazyModule {
+  val fromMem = AXI4Xbar()
+  private val intfileFromMems = Seq(
+    AddressSet(params.mAddr,  pow2(params.intFileMemWidth) - 1),
+    AddressSet(params.sgAddr, pow2(params.intFileMemWidth) * pow2(log2Ceil(1+params.geilen)) - 1),
+  ).map(addrset => {
+    val intfileFromMem = AXI4RegMapperNode(
+      address = addrset,
+      beatBytes = beatBytes)
+    intfileFromMem := fromMem
+    intfileFromMem
+  })
+
+  lazy val module = new AXIRegIMSICImp(this)
+  class AXIRegIMSICImp(outer: LazyModule) extends LazyModuleImp(outer) {
+    val io = IO(Output(new Bundle {
+      val seteipnum = UInt(params.imsicIntSrcWidth.W)
+      val valid = Vec(params.intFilesNum,Bool())
+    }))
+
+    private val reggen = Module(new RegGen(params, beatBytes))
+
+    io.seteipnum := reggen.io.seteipnum
+    io.valid     := reggen.io.valid
+    (intfileFromMems zip reggen.regmapIOs).map {
       case (intfileFromMem, regmapIO) => intfileFromMem.regmap(regmapIO._1, regmapIO._2)
     }
   }
@@ -345,17 +479,7 @@ class AXI4IMSIC(
   params: IMSICParams,
   beatBytes: Int = 8,
 )(implicit p: Parameters) extends LazyModule {
-  val fromMem = LazyModule(new AXI4Xbar).node
-  private val intfileFromMems = Seq(
-    AddressSet(params.mAddr,  pow2(params.intFileMemWidth) - 1),
-    AddressSet(params.sgAddr, pow2(params.intFileMemWidth) * pow2(log2Ceil(1+params.geilen)) - 1),
-  ).map ( addrset => {
-    val intfileFromMem = AXI4RegMapperNode (
-      address = addrset,
-      beatBytes = beatBytes)
-    intfileFromMem := fromMem; intfileFromMem
-  })
-
+  val axireg = LazyModule(new AXIRegIMSIC(params, beatBytes)(Parameters.empty))
   lazy val module = new Imp
   class Imp extends LazyModuleImp(this) {
     val toCSR = IO(Output(new IMSICToCSRBundle(params)))
@@ -363,9 +487,51 @@ class AXI4IMSIC(
     private val imsic = Module(new IMSIC(params, beatBytes))
     toCSR := imsic.toCSR
     imsic.fromCSR := fromCSR
+    imsic.io.seteipnum := axireg.module.io.seteipnum
+    imsic.io.valid := axireg.module.io.valid
+    /* code on when imsic has two clock domains.*/
+    //--- define soc_clock for imsic bus logic ***//
+    val soc_clock = IO(Input(Clock()))
+    val soc_reset = IO(Input(Reset()))
+    axireg.module.clock := soc_clock
+    axireg.module.reset := soc_reset
+    imsic.clock := clock
+    imsic.reset := reset
+    when(params.EnableImsicAsyncBridge.B) {
+      val FifoDataWidth = params.imsicIntSrcWidth + params.intFilesNum
+      //---- instance async fifo ----//
+      //--- fifo wdata: {vector_valid,setipnum}, fifo wren: |vector_valid---//
+      val fifo_wdata = Wire(Valid(UInt(FifoDataWidth.W)))
+      fifo_wdata.bits := Cat(axireg.module.io.valid.asUInt, axireg.module.io.seteipnum)
+      fifo_wdata.valid := axireg.module.io.valid.reduce(_|_)
+      //--- instance about fifo async queue sink  ---//
+      val sink = Module(new AsyncQueueSink(UInt(FifoDataWidth.W),AsyncQueueParams(8,3,false,false)))
+      sink.io.deq.ready := true.B
+      //--- fifo rdata decode ---//
+      imsic.io.seteipnum := sink.io.deq.bits(params.imsicIntSrcWidth-1, 0)
 
-    (intfileFromMems zip imsic.regmapIOs).map {
-      case (intfileFromMem, regmapIO) => intfileFromMem.regmap(regmapIO._1, regmapIO._2)
+      val fifo_rvalids = sink.io.deq.bits(FifoDataWidth-1, params.imsicIntSrcWidth)
+      val rvalids_tovec = VecInit(Seq.fill(params.intFilesNum)(false.B))// bits->vector
+      for (i <- 0 until params.intFilesNum) {
+        rvalids_tovec (i) := fifo_rvalids(i)
+      }
+       when(sink.io.deq.valid) {  // active when sink.valid active
+         imsic.io.valid := rvalids_tovec
+       }.otherwise{
+         imsic.io.valid := Seq.fill(params.intFilesNum)(false.B)
+       }
+      //--- instance about fifo async queue source  ---//
+      val source = Module(new AsyncQueueSource(UInt(FifoDataWidth.W),AsyncQueueParams(8,3,false,false)))
+
+      source.clock := soc_clock
+      source.reset := soc_reset
+      source.io.enq.valid := fifo_wdata.valid
+      source.io.enq.bits := fifo_wdata.bits
+      sink.io.async <> source.io.async
+
+    }.otherwise {
+      imsic.io.seteipnum := axireg.module.io.seteipnum
+      imsic.io.valid := axireg.module.io.valid
     }
   }
 }
